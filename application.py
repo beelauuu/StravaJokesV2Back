@@ -7,7 +7,6 @@ import random
 import asyncio
 
 auth_url = 'https://www.strava.com/api/v3/oauth/token'
-url = 'https://www.strava.com/api/v3'
 load_dotenv()
 client = MongoClient(
   f'mongodb+srv://{os.environ.get("DB_USERNAME")}:{os.environ.get("DB_PASSWORD")}@cluster0.ziyuaoy.mongodb.net/?retryWrites=true&w=majority'
@@ -17,10 +16,14 @@ collection = db['users']
 
 
 async def update_joke(user_id):
+  url = 'https://www.strava.com/api/v3'
+
+  # Retrieving user to get their token
   user = collection.find_one({'user_id': user_id})
   if user is None:
     print('User is not found!')
     return
+  
   #Retrieving refresh token
   payload = {
     'client_id': os.environ.get('CLIENT_ID'),
@@ -55,17 +58,18 @@ async def update_joke(user_id):
   #Updating activity description
   if ('🤡 Joke of the day 🤡' not in current_description):
     random_number = random.randint(1, 3)
+
     # Joke API #1
     if random_number == 1:
-      j = await Jokes()  
-      joke = await j.get_joke(blacklist=['sexist','racist','explicit'])  
+      j = await Jokes()
+      joke = await j.get_joke(blacklist=['sexist', 'racist', 'explicit'])
       # One-liner joke
       if joke["type"] == "single":
         headers = {'Authorization': 'Bearer ' + access_token}
         updatableActivity = {
           'description':
-          '🤡 Joke of the day 🤡\n' + joke["joke"] + '\n- by Joke.py (v2)' + '\n\n' +
-          current_description
+          '🤡 Joke of the day 🤡\n' + joke["joke"] + '\n- by Joke.py (v2)' +
+          '\n\n' + current_description
         }
         response = requests.put(url + '/activities/' + str(activity_id),
                                 headers=headers,
@@ -83,37 +87,36 @@ async def update_joke(user_id):
                                 params=updatableActivity)
     #Joke API #2
     elif random_number == 2:
-      url = "https://icanhazdadjoke.com/"
+      url_two = "https://icanhazdadjoke.com/"
       headers = {"Accept": "application/json"}
-      response = requests.get(url, headers=headers)
+      response = requests.get(url_two, headers=headers)
       if response.status_code == 200:
         data = response.json()
         headers = {'Authorization': 'Bearer ' + access_token}
         updatableActivity = {
           'description':
-          '🤡 Joke of the day 🤡\n' + data["joke"] + '\n- by Joke.py (v2)' + '\n\n' +
-         current_description
+          '🤡 Joke of the day 🤡\n' + data["joke"] + '\n- by Joke.py (v2)' +
+          '\n\n' + current_description
         }
         response = requests.put(url + '/activities/' + str(activity_id),
-                                headers=headers,params=updatableActivity)
+                                headers=headers,
+                                params=updatableActivity)
     #Joke API #3
     else:
-      url = "https://dad-jokes.p.rapidapi.com/random/joke"
+      url_three = "https://dad-jokes.p.rapidapi.com/random/joke"
       headers = {
-      	"X-RapidAPI-Key": "9f3d93e966mshd0b57f74285ca1fp1e8cdfjsnaa1b553880fa",
-      	"X-RapidAPI-Host": "dad-jokes.p.rapidapi.com"
+        "X-RapidAPI-Key": "9f3d93e966mshd0b57f74285ca1fp1e8cdfjsnaa1b553880fa",
+        "X-RapidAPI-Host": "dad-jokes.p.rapidapi.com"
       }
-      response = requests.get(url, headers=headers)
+      response = requests.get(url_three, headers=headers)
       joke = response.json()
       headers = {'Authorization': 'Bearer ' + access_token}
       updatableActivity = {
-          'description':
-          '🤡 Joke of the day 🤡\n' + joke["setup"] + '\n' + joke["punchline"] +
-          '\n- by Joke.py (v2)' + '\n\n' + current_description
+        'description':
+        '🤡 Joke of the day 🤡\n' + joke["body"][0]["setup"] + '\n' + joke["body"][0]["punchline"] +
+        '\n- by Joke.py (v2)' + '\n\n' + current_description
       }
       response = requests.put(url + '/activities/' + str(activity_id),
-                                headers=headers,
-                                params=updatableActivity)
-        
-        
+                              headers=headers,
+                              params=updatableActivity)
       
