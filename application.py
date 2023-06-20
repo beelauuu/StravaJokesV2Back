@@ -1,13 +1,15 @@
-import requests
-from dotenv import load_dotenv
+import joke
 import os
-from jokeapi import Jokes
+from flask import Flask, redirect, request
+from flask import jsonify
+from dotenv import load_dotenv
 from pymongo import MongoClient
-import random
-import asyncio
+import requests
 
-auth_url = 'https://www.strava.com/api/v3/oauth/token'
+app = Flask(__name__)
 load_dotenv()
+client_id = os.environ.get('CLIENT_ID')
+client_secret = os.environ.get('CLIENT_SECRET')
 client = MongoClient(
   f'mongodb+srv://{os.environ.get("DB_USERNAME")}:{os.environ.get("DB_PASSWORD")}@cluster0.ziyuaoy.mongodb.net/?retryWrites=true&w=majority'
 )
@@ -15,108 +17,105 @@ db = client['StravaJokes']
 collection = db['users']
 
 
-async def update_joke(user_id):
-  url = 'https://www.strava.com/api/v3'
+@app.route('/')
+def api_root():
+  return 'Welcome!'
 
-  # Retrieving user to get their token
-  user = collection.find_one({'user_id': user_id})
-  if user is None:
-    print('User is not found!')
-    return
-  
-  #Retrieving refresh token
+
+@app.route('/login')
+def login():
+  client_id = os.environ.get('CLIENT_ID')
+  redirect_uri = 'https://stravajokesv2.beelauuu.repl.co/callback'
+  scopes = 'activity:write,activity:read_all'
+  authorization_url = f'https://www.strava.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scopes}'
+  return redirect(authorization_url)
+
+
+@app.route('/callback')
+def strava_callback():
+  code = request.args.get('code')
+  # Exchange the authorization code for an access token
+  token_url = 'https://www.strava.com/oauth/token'
   payload = {
     'client_id': os.environ.get('CLIENT_ID'),
     'client_secret': os.environ.get('CLIENT_SECRET'),
-    'grant_type': 'refresh_token',
-    'refresh_token': user['refresh_token']
+    'code': code,
+    'grant_type': 'authorization_code'
   }
-  response = requests.post(
-    auth_url,
-    data=payload,
-  )
-  access_token = response.json()['access_token']
+  response = requests.post(token_url, data=payload)
+  data = response.json()
+  if 'access_token' in data:
+    access_token = data['access_token']
+    refresh_token = data['refresh_token']
+    user_id = data['athlete']['id']
+    existing_user = collection.find_one({'user_id': user_id})
 
-  #Getting first (most recent) activity id
-  headers = {'Authorization': 'Bearer ' + access_token}
-  param = {'page': 1, 'per_page': 1}
-  response = requests.get(url + '/athlete/activities',
-                          headers=headers,
-                          params=param)
-  activity_id = response.json()[0]['id']
+    # Store tokens in MongoDB (if user DNE)
+    if existing_user == None:
+      user_tokens = {'user_id': user_id, 'refresh_token': refresh_token}
+      collection.insert_one(user_tokens)
 
-  #Get current description
-  headers = {'Authorization': 'Bearer ' + access_token}
-  response = requests.get(
-    url + '/activities/' + str(activity_id),
-    headers=headers,
-  )
-  current_description = response.json()['description']
-  if current_description is None:
-    current_description = ''
+    # Create a push subscription for the webhook
+    subscription_url = 'https://www.strava.com/api/v3/push_subscriptions'
+    subscription_payload = {
+      'client_id': os.environ.get('CLIENT_ID'),
+      'client_secret': os.environ.get('CLIENT_SECRET'),
+      'callback_url': 'https://stravajokesv2.beelauuu.repl.co/webhook',
+      'verify_token': 'BEELAU'
+    }
+    headers = {'Authorization': f'Bearer {access_token}'}
+    subscription_response = requests.post(subscription_url,
+                                          data=subscription_payload,
+                                          headers=headers)
 
-  #Updating activity description
-  if ('🤡 Joke of the day 🤡' not in current_description):
-    random_number = random.randint(1, 3)
-
-    # Joke API #1
-    if random_number == 1:
-      j = await Jokes()
-      joke = await j.get_joke(blacklist=['sexist', 'racist', 'explicit'])
-      # One-liner joke
-      if joke["type"] == "single":
-        headers = {'Authorization': 'Bearer ' + access_token}
-        updatableActivity = {
-          'description':
-          '🤡 Joke of the day 🤡\n' + joke["joke"] + '\n- by Joke.py (v2)' +
-          '\n\n' + current_description
-        }
-        response = requests.put(url + '/activities/' + str(activity_id),
-                                headers=headers,
-                                params=updatableActivity)
-      # Two-part joke
-      else:
-        headers = {'Authorization': 'Bearer ' + access_token}
-        updatableActivity = {
-          'description':
-          '🤡 Joke of the day 🤡\n' + joke["setup"] + '\n' + joke["delivery"] +
-          '\n- by Joke.py (v2)' + '\n\n' + current_description
-        }
-        response = requests.put(url + '/activities/' + str(activity_id),
-                                headers=headers,
-                                params=updatableActivity)
-    #Joke API #2
-    elif random_number == 2:
-      url_two = "https://icanhazdadjoke.com/"
-      headers = {"Accept": "application/json"}
-      response = requests.get(url_two, headers=headers)
-      if response.status_code == 200:
-        data = response.json()
-        headers = {'Authorization': 'Bearer ' + access_token}
-        updatableActivity = {
-          'description':
-          '🤡 Joke of the day 🤡\n' + data["joke"] + '\n- by Joke.py (v2)' +
-          '\n\n' + current_description
-        }
-        response = requests.put(url + '/activities/' + str(activity_id),
-                                headers=headers,
-                                params=updatableActivity)
-    #Joke API #3
+    # Check the response status code to ensure the subscription was created successfully
+    if subscription_response.status_code == 201:
+      # Subscription created successfully
+      return jsonify({'message': 'Subscription created'}), 200
     else:
-      url_three = "https://dad-jokes.p.rapidapi.com/random/joke"
-      headers = {
-        "X-RapidAPI-Key": "9f3d93e966mshd0b57f74285ca1fp1e8cdfjsnaa1b553880fa",
-        "X-RapidAPI-Host": "dad-jokes.p.rapidapi.com"
-      }
-      response = requests.get(url_three, headers=headers)
-      joke = response.json()
-      headers = {'Authorization': 'Bearer ' + access_token}
-      updatableActivity = {
-        'description':
-        '🤡 Joke of the day 🤡\n' + joke["body"][0]["setup"] + '\n' + joke["body"][0]["punchline"] +
-        '\n- by Joke.py (v2)' + '\n\n' + current_description
-      }
-      response = requests.put(url + '/activities/' + str(activity_id),
-                              headers=headers,
-                              params=updatableActivity)
-      
+      # Failed to create subscription
+      return jsonify({
+        'message':
+        'Failed to create subscription. Most likely you are already subscribed'
+      }), 500
+  else:
+    # Failed to obtain access token
+    return jsonify({'message': 'Failed to obtain access token'}), 500
+
+
+# Creates the endpoint for our webhook
+@app.route('/webhook', methods=['POST'])
+async def webhook():
+  print("Webhook event received!", request.args, request.json)
+  if request.json['aspect_type'] == 'create' and request.json[
+      'object_type'] == 'activity':
+    await joke.update_joke(request.json['owner_id'])
+    return 'JOKE_RECEIVED', 200
+  return 'EVENT_RECEIVED', 200
+
+
+# Adds support for GET requests to our webhook
+@app.route('/webhook', methods=['GET'])
+def verify_webhook():
+  # Your verify token. Should be a random string.
+  VERIFY_TOKEN = "BEELAU"
+  # Parses the query params
+  mode = request.args.get('hub.mode')
+  token = request.args.get('hub.verify_token')
+  challenge = request.args.get('hub.challenge')
+
+  # Checks if a token and mode is in the query string of the request
+  if mode and token:
+    # Verifies that the mode and token sent are valid
+    if mode == 'subscribe' and token == VERIFY_TOKEN:
+      # Responds with the challenge token from the request
+      print('WEBHOOK_VERIFIED')
+      return jsonify({'hub.challenge': challenge}), 200
+    else:
+      # Responds with '403 Forbidden' if verify tokens do not match
+      return 'Forbidden', 403
+  return 'Bad Request', 400
+
+
+if __name__ == '__main__':
+  app.run('0.0.0.0')
