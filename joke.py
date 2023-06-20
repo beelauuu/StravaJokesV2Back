@@ -115,4 +115,5 @@ async def update_joke(user_id):
       response = requests.put(url + '/activities/' + str(activity_id),
                               headers=headers,
                               params=updatableActivity)
-      
+# For testing purposes 
+asyncio.run(update_joke(41098360)) 
