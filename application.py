@@ -24,6 +24,7 @@ def api_root():
 
 @app.route('/login')
 def login():
+  # Redirects to Strava authorizatino
   client_id = os.environ.get('CLIENT_ID')
   redirect_uri = 'https://stravajokesv2.beelauuu.repl.co/create_callback'
   scopes = 'activity:write,activity:read_all'
@@ -33,7 +34,7 @@ def login():
 
 @app.route('/create_webhook')
 def create_webhook():
-  # Create a push subscription for the webhook
+  # Create a push subscription for the webhook (no subscribers)
   subscription_url = 'https://www.strava.com/api/v3/push_subscriptions'
   subscription_payload = {
     'client_id': os.environ.get('CLIENT_ID'),
@@ -43,6 +44,7 @@ def create_webhook():
   }
   subscription_response = requests.post(subscription_url,
                                         data=subscription_payload)
+  
   # Check the response status code to ensure the subscription was created successfully
   if subscription_response.status_code == 201:
     # Subscription created successfully
@@ -57,6 +59,7 @@ def create_webhook():
 
 @app.route('/delete_webhook')
 def delete_webhook():
+  # Getting the webhook subscription id
   url = 'https://www.strava.com/api/v3/push_subscriptions'
   params = {
     'client_id': os.getenv('CLIENT_ID'),
@@ -65,6 +68,7 @@ def delete_webhook():
   response = requests.get(url, params=params)
   data = response.json()
 
+  # If found, then delete the webhook
   if 'id' in data[0]:
     subscription_id = data[0]['id']
     delete_url = f'https://www.strava.com/api/v3/push_subscriptions/{subscription_id}'
@@ -74,6 +78,7 @@ def delete_webhook():
     }
     response = requests.delete(delete_url, params=params)
     client.drop_database('StravaJokes')
+
     if response.status_code == 204 or response.status_code == 200:
       return jsonify({
         'message':
@@ -81,8 +86,9 @@ def delete_webhook():
       }), 200
     else:
       return jsonify({'message': 'Failed to delete webhook'}), 500
-
-
+  else:
+    return jsonify({'message': 'Failed to find webhook'}), 500
+  
 @app.route('/create_callback')
 def strava_callback():
   code = request.args.get('code')
@@ -96,12 +102,12 @@ def strava_callback():
   }
   response = requests.post(token_url, data=payload)
   data = response.json()
+
   if 'access_token' in data:
     access_token = data['access_token']
     refresh_token = data['refresh_token']
     user_id = data['athlete']['id']
     existing_user = collection.find_one({'user_id': user_id})
-
     client_id = os.environ.get('CLIENT_ID')
     client_secret = os.environ.get('CLIENT_SECRET')
     callback_url = 'https://stravajokesv2.beelauuu.repl.co/webhook'
@@ -140,6 +146,7 @@ def strava_callback():
 
 @app.route('/delete')
 def deleteSubscription():
+  # Authenticate to get users tokens again
   client_id = os.environ.get('CLIENT_ID')
   redirect_uri = 'https://stravajokesv2.beelauuu.repl.co/deletecallback'
   scopes = 'activity:write,activity:read_all'
@@ -163,11 +170,14 @@ def deleteSubscriptionCallback():
   user_id = data['athlete']['id']
   existing_user = collection.find_one({'user_id': user_id})
 
+  # Check if user is in the database
   if existing_user is not None:
+    # Doing the deleting
     unsub_url = 'https://www.strava.com/oauth/deauthorize'
     params = {'access_token': data['access_token']}
     response = requests.post(unsub_url, data=params)
     collection.delete_one({'user_id': user_id})
+
     if response.status_code == 204 or response.status_code == 200:
       return jsonify({'message': 'Subscription deleted!'}), 200
     else:
