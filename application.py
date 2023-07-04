@@ -5,6 +5,7 @@ from flask import jsonify
 from dotenv import load_dotenv
 from pymongo import MongoClient
 import requests
+from urllib.parse import quote
 
 app = Flask(__name__)
 load_dotenv()
@@ -17,20 +18,18 @@ db = client['StravaJokes']
 collection = db['users']
 
 
-@app.route('/')
-def api_root():
-  return 'Welcome!'
-
-
 @app.route('/login')
 def login():
-  # Redirects to Strava authorizatino
+  # Redirects to Strava authorization
   client_id = os.environ.get('CLIENT_ID')
   redirect_uri = 'https://stravajokesv2.beelauuu.repl.co/create_callback'
   scopes = 'activity:write,activity:read_all'
   authorization_url = f'https://www.strava.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scopes}'
   return redirect(authorization_url)
 
+# Yeah these 2 routes are commented out on prod because they could cause problems if
+# just anybody could go ahead and create/delete webhooks. I'll leave them here
+# for now just in case shit hits the fan.
 
 @app.route('/create_webhook')
 def create_webhook():
@@ -44,17 +43,16 @@ def create_webhook():
   }
   subscription_response = requests.post(subscription_url,
                                         data=subscription_payload)
-  
+
   # Check the response status code to ensure the subscription was created successfully
   if subscription_response.status_code == 201:
     # Subscription created successfully
-    return jsonify({'message': 'Subscription created'}), 200
+    return redirect("https://stravajokes.vercel.app/message?message=" +
+                    quote("Subsciption Created!"))
   else:
     # Failed to create subscription
-    return jsonify({
-      'message':
-      'Failed to create subscription. Most likely it has already been created'
-    }), 500
+    return redirect("https://stravajokes.vercel.app/message?message=" +
+                    quote("Failed to create subscription"))
 
 
 @app.route('/delete_webhook')
@@ -80,15 +78,17 @@ def delete_webhook():
     client.drop_database('StravaJokes')
 
     if response.status_code == 204 or response.status_code == 200:
-      return jsonify({
-        'message':
-        'Deleted successfully! Subscription ID: ' + str(subscription_id)
-      }), 200
+      return redirect("https://stravajokes.vercel.app/message?message=" +
+                      quote("Deleted successfully! Subscription ID: " +
+                            str(subscription_id)))
     else:
-      return jsonify({'message': 'Failed to delete webhook'}), 500
+      return redirect("https://stravajokes.vercel.app/message?message=" +
+                      quote("Failed To Delete Webhook!"))
   else:
-    return jsonify({'message': 'Failed to find webhook'}), 500
-  
+    return redirect("https://stravajokes.vercel.app/message?message=" +
+                    quote("Failed To Find Webhook!"))
+
+
 @app.route('/create_callback')
 def strava_callback():
   code = request.args.get('code')
@@ -131,24 +131,27 @@ def strava_callback():
         'access_token': access_token,
         'refresh_token': refresh_token,
       }
+      # Store tokens in MongoDB (if user DNE)
       if existing_user is None:
         collection.insert_one(user_tokens)
-      # Store tokens in MongoDB (if user DNE)
-      return jsonify({'message': 'Subscribed!'}), 200
+      return redirect("https://stravajokes.vercel.app/message?message=" +
+                      quote("Subscribed Successfully!"))
+
     else:
       # Failed to create subscription
       return jsonify({'message': subscription_response.json()
                       }), subscription_response.status_code
   else:
     # Failed to obtain access token
-    return jsonify({'message': 'Failed to obtain access token'}), 500
+    return redirect("https://stravajokes.vercel.app/message?message=" +
+                    quote("Unable To Obtain Access Token"))
 
 
 @app.route('/delete')
 def deleteSubscription():
   # Authenticate to get users tokens again
   client_id = os.environ.get('CLIENT_ID')
-  redirect_uri = 'https://stravajokesv2.beelauuu.repl.co/deletecallback'
+  redirect_uri = 'https://stravajokesv2.beelauuu.repl.co/delete_callback'
   scopes = 'activity:write,activity:read_all'
   authorization_url = f'https://www.strava.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scopes}'
   return redirect(authorization_url)
@@ -179,14 +182,16 @@ def deleteSubscriptionCallback():
     collection.delete_one({'user_id': user_id})
 
     if response.status_code == 204 or response.status_code == 200:
-      return jsonify({'message': 'Subscription deleted!'}), 200
+      return redirect("https://stravajokes.vercel.app/message?message=" +
+                      quote("Deleted Successfully!"))
+
     else:
-      return jsonify({
-        'message':
-        'Failed to delete subscription. You may have deleted it already'
-      }), 500
+      return redirect("https://stravajokes.vercel.app/message?message=" +
+                      quote("Failed To Delete Subscription"))
+
   else:
-    return jsonify({'message': 'Failed to obtain access token'}), 500
+    return redirect("https://stravajokes.vercel.app/message?message=" +
+                    quote("Failed To Delete Subscription"))
 
 
 # Creates the endpoint for our webhook
