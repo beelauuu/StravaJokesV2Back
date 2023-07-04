@@ -53,8 +53,8 @@ async def update_joke(user_id):
     current_description = ''
 
   #Updating activity description
-  if ('🤡 Joke of the day 🤡' not in current_description):
-    random_number = random.randint(1, 3)
+  if ('🤡 Joke Of The Activity 🤡' not in current_description):
+    random_number = random.randint(1, 5)
     # Joke API #1
     if random_number == 1:
       j = await Jokes()
@@ -64,7 +64,7 @@ async def update_joke(user_id):
         headers = {'Authorization': 'Bearer ' + access_token}
         updatableActivity = {
           'description':
-          '🤡 Joke of the day 🤡\n' + joke["joke"] + '\n- by Joke.py (v2)' +
+          '🤡 Joke Of The Activity 🤡\n' + joke["joke"] + '\n- by Joke.py (v2)' +
           '\n\n' + current_description
         }
         response = requests.put(url + '/activities/' + str(activity_id),
@@ -75,12 +75,13 @@ async def update_joke(user_id):
         headers = {'Authorization': 'Bearer ' + access_token}
         updatableActivity = {
           'description':
-          '🤡 Joke of the day 🤡\n' + joke["setup"] + '\n' + joke["delivery"] +
-          '\n- by Joke.py (v2)' + '\n\n' + current_description
+          '🤡 Joke Of The Activity 🤡\n' + joke["setup"] + '\n' +
+          joke["delivery"] + '\n- by Joke.py (v2)' + '\n\n' +
+          current_description
         }
         response = requests.put(url + '/activities/' + str(activity_id),
                                 headers=headers,
-                                params=updatableActivity)
+                                json=updatableActivity)
     #Joke API #2
     elif random_number == 2:
       url_two = "https://icanhazdadjoke.com/"
@@ -91,14 +92,14 @@ async def update_joke(user_id):
         headers = {'Authorization': 'Bearer ' + access_token}
         updatableActivity = {
           'description':
-          '🤡 Joke of the day 🤡\n' + data["joke"] + '\n- by Joke.py (v2)' +
+          '🤡 Joke Of The Activity 🤡\n' + data["joke"] + '\n- by Joke.py (v2)' +
           '\n\n' + current_description
         }
         response = requests.put(url + '/activities/' + str(activity_id),
                                 headers=headers,
-                                params=updatableActivity)
+                                json=updatableActivity)
     #Joke API #3
-    else:
+    elif random_number == 3:
       url_three = "https://dad-jokes.p.rapidapi.com/random/joke"
       headers = {
         "X-RapidAPI-Key": "9f3d93e966mshd0b57f74285ca1fp1e8cdfjsnaa1b553880fa",
@@ -109,11 +110,43 @@ async def update_joke(user_id):
       headers = {'Authorization': 'Bearer ' + access_token}
       updatableActivity = {
         'description':
-        '🤡 Joke of the day 🤡\n' + joke["body"][0]["setup"] + '\n' + joke["body"][0]["punchline"] +
-        '\n- by Joke.py (v2)' + '\n\n' + current_description
+        '🤡 Joke Of The Activity 🤡\n' + joke["body"][0]["setup"] + '\n' +
+        joke["body"][0]["punchline"] + '\n- by Joke.py (v2)' + '\n\n' +
+        current_description
       }
       response = requests.put(url + '/activities/' + str(activity_id),
                               headers=headers,
-                              params=updatableActivity)
-# For testing purposes 
-asyncio.run(update_joke(41098360)) 
+                              json=updatableActivity)
+    # Joke API #4
+    elif random_number == 4:
+      url = 'https://backend-omega-seven.vercel.app/api/getjoke'
+      response = requests.get(url)
+      joke = response.json()
+      headers = {'Authorization': 'Bearer ' + access_token}
+      updatableActivity = {
+        'description':
+        '🤡 Joke Of The Activity 🤡\n' + joke[0]['question'] + '\n' +
+        joke[0]['punchline'] + '\n- by Joke.py (v2)' + '\n\n' +
+        current_description
+      }
+      response = requests.put(url + '/activities/' + str(activity_id),
+                              headers=headers,
+                              json=updatableActivity)
+    # Joke API #5
+    else:
+      url = 'https://official-joke-api.appspot.com/'
+      response = requests.get(url)
+      joke = response.json()
+      headers = {'Authorization': 'Bearer ' + access_token}
+      updatableActivity = {
+        'description':
+        '🤡 Joke Of The Activity 🤡\n' + joke['setup'] + '\n' +
+        joke['punchline'] + '\n- by Joke.py (v2)' + '\n\n' +
+        current_description
+      }
+      response = requests.put(url + '/activities/' + str(activity_id),
+                              headers=headers,
+                              json=updatableActivity)
+
+# For testing purposes
+asyncio.run(update_joke(41098360))
