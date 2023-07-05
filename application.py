@@ -47,11 +47,11 @@ def create_webhook():
   # Check the response status code to ensure the subscription was created successfully
   if subscription_response.status_code == 201:
     # Subscription created successfully
-    return redirect("https://stravajokes.vercel.app/message?message=" +
+    return redirect("https://jokepy.vercel.app/message?message=" +
                     quote("Subsciption Created!"))
   else:
     # Failed to create subscription
-    return redirect("https://stravajokes.vercel.app/message?message=" +
+    return redirect("https://jokepy.vercel.app/message?message=" +
                     quote("Failed to create subscription"))
 
 
@@ -78,14 +78,14 @@ def delete_webhook():
     client.drop_database('StravaJokes')
 
     if response.status_code == 204 or response.status_code == 200:
-      return redirect("https://stravajokes.vercel.app/message?message=" +
+      return redirect("https://jokepy.vercel.app/message?message=" +
                       quote("Deleted successfully! Subscription ID: " +
                             str(subscription_id)))
     else:
-      return redirect("https://stravajokes.vercel.app/message?message=" +
+      return redirect("https://jokepy.vercel.app/message?message=" +
                       quote("Failed To Delete Webhook!"))
   else:
-    return redirect("https://stravajokes.vercel.app/message?message=" +
+    return redirect("https://jokepy.vercel.app/message?message=" +
                     quote("Failed To Find Webhook!"))
 
 
@@ -134,7 +134,7 @@ def strava_callback():
       # Store tokens in MongoDB (if user DNE)
       if existing_user is None:
         collection.insert_one(user_tokens)
-      return redirect("https://stravajokes.vercel.app/message?message=" +
+      return redirect("https://jokepy.vercel.app/message?message=" +
                       quote("Subscribed Successfully!"))
 
     else:
@@ -143,7 +143,7 @@ def strava_callback():
                       }), subscription_response.status_code
   else:
     # Failed to obtain access token
-    return redirect("https://stravajokes.vercel.app/message?message=" +
+    return redirect("https://jokepy.vercel.app/message?message=" +
                     quote("Unable To Obtain Access Token"))
 
 
@@ -182,15 +182,15 @@ def deleteSubscriptionCallback():
     collection.delete_one({'user_id': user_id})
 
     if response.status_code == 204 or response.status_code == 200:
-      return redirect("https://stravajokes.vercel.app/message?message=" +
+      return redirect("https://jokepy.vercel.app/message?message=" +
                       quote("Deleted Successfully!"))
 
     else:
-      return redirect("https://stravajokes.vercel.app/message?message=" +
+      return redirect("https://jokepy.vercel.app/message?message=" +
                       quote("Failed To Delete Subscription"))
 
   else:
-    return redirect("https://stravajokes.vercel.app/message?message=" +
+    return redirect("https://jokepy.vercel.app/message?message=" +
                     quote("Failed To Delete Subscription"))
 
 
