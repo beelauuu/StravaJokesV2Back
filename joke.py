@@ -14,8 +14,7 @@ client = MongoClient(
 db = client['StravaJokes']
 collection = db['users']
 
-
-async def update_joke(user_id):
+def update_joke(user_id):
   url = 'https://www.strava.com/api/v3'
   user = collection.find_one({'user_id': user_id})
   if user is None:
@@ -57,31 +56,19 @@ async def update_joke(user_id):
     random_number = random.randint(1, 5)
     # Joke API #1
     if random_number == 1:
-      j = await Jokes()
-      joke = await j.get_joke(blacklist=['sexist', 'racist', 'explicit'])
-      # One-liner joke
-      if joke["type"] == "single":
-        headers = {'Authorization': 'Bearer ' + access_token}
-        updatableActivity = {
+      limit = 1
+      api_url = 'https://api.api-ninjas.com/v1/jokes?limit={}'.format(limit)
+      response = requests.get(api_url, headers={'X-Api-Key': 'FGlq+GeY3I6j8GCVQggQlw==y8452egm19j1CPOL'})
+      data = response.json()
+      headers = {'Authorization': 'Bearer ' + access_token}
+      updatableActivity = {
           'description':
-          '🤡 Joke Of The Activity 🤡\n' + joke["joke"] + '\n- by Joke.py (v2)' +
+          '🤡 Joke Of The Activity 🤡\n' + data[0]['joke'] + '\n- by Joke.py (v2)' +
           '\n\n' + current_description
-        }
-        response = requests.put(url + '/activities/' + str(activity_id),
+      }
+      response = requests.put(url + '/activities/' + str(activity_id),
                                 headers=headers,
                                 params=updatableActivity)
-      # Two-part joke
-      else:
-        headers = {'Authorization': 'Bearer ' + access_token}
-        updatableActivity = {
-          'description':
-          '🤡 Joke Of The Activity 🤡\n' + joke["setup"] + '\n' +
-          joke["delivery"] + '\n- by Joke.py (v2)' + '\n\n' +
-          current_description
-        }
-        response = requests.put(url + '/activities/' + str(activity_id),
-                                headers=headers,
-                                json=updatableActivity)
     #Joke API #2
     elif random_number == 2:
       url_two = "https://icanhazdadjoke.com/"
@@ -149,4 +136,4 @@ async def update_joke(user_id):
                               json=updatableActivity)
 
 # For testing purposes
-asyncio.run(update_joke(41098360))
+# update_joke(41098360)

@@ -196,11 +196,11 @@ def deleteSubscriptionCallback():
 
 # Creates the endpoint for our webhook
 @app.route('/webhook', methods=['POST'])
-async def webhook():
+def webhook():
   print("Webhook event received!", request.args, request.json)
   if request.json['aspect_type'] == 'create' and request.json[
       'object_type'] == 'activity':
-    await joke.update_joke(request.json['owner_id'])
+    joke.update_joke(request.json['owner_id'])
     return 'JOKE_RECEIVED', 200
   return 'EVENT_RECEIVED', 200
 
