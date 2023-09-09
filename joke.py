@@ -121,7 +121,7 @@ def update_joke(user_id):
                               json=updatableActivity)
     # Joke API #5
     else:
-      url = 'https://official-joke-api.appspot.com/'
+      url = 'https://official-joke-api.appspot.com/random_joke'
       response = requests.get(url)
       joke = response.json()
       headers = {'Authorization': 'Bearer ' + access_token}
